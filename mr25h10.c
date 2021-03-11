@@ -1,4 +1,15 @@
-
+/**
+ * @file mr25h10.c
+ * @author mjlee2
+ * @brief MR25H10 Interface. 
+ *  	Recommanded Instruction. 
+ * 		- Use Quarter(0x8000) memory as section.
+ * @version 0.1
+ * @date 2021-03-12
+ * 
+ * @copyright Copyright (c) 2021
+ * 
+ */
 #include "mr25h10.h"
 
 
@@ -36,7 +47,7 @@ void MR25H10_Init(MR25H10_ctx_t *ctx, SPI_HandleTypeDef *hspi,  GPIO_TypeDef* GP
 
 /**
  * @brief Read MRAM
- * 		  (*Note. It can read 0xFFFF in one time -- Half of whole memory)
+ * 		  (*Note. It can read 0xFFFF in one time -- Half of whole memory-1)
  * @param ctx MR25H10 Handle
  * @param addr Address [0x0 0x1FFFF]
  * @param pdata pointer of read data

@@ -15,6 +15,7 @@
 
 #define MR25H10_TIMEOUT 	500
 #define MR25H10_MAX_SIZE 	0x20000
+#define MR25H10_QUARTER 	0x8000
 
 typedef struct MR25H10_ctx_st {
     SPI_HandleTypeDef *hspi; // Mode 0 or Mode 3. Max 40Mhz.
