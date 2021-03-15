@@ -37,13 +37,15 @@ typedef struct MR25H10_ctx_st {
 #define STATUS_BIT_USER0 	0
 
 void 	MR25H10_Init(MR25H10_ctx_t *ctx, SPI_HandleTypeDef *hspi,  GPIO_TypeDef* GPIOx, uint16_t GPIO_Pin);
-int32_t 	MR25H10_Read(MR25H10_ctx_t *ctx, uint32_t addr, uint8_t *pdata, uint16_t size);
-int32_t 	MR25H10_Write(MR25H10_ctx_t *ctx, uint32_t addr, uint8_t *pdata, uint16_t size);
-int32_t 	MR25H10_Erase(MR25H10_ctx_t *ctx, uint32_t addr, uint32_t size);
+int32_t MR25H10_Read(MR25H10_ctx_t *ctx, uint32_t addr, uint8_t *pdata, uint32_t size);
+int32_t MR25H10_Write(MR25H10_ctx_t *ctx, uint32_t addr, uint8_t *pdata, uint32_t size);
+int32_t MR25H10_Erase(MR25H10_ctx_t *ctx, uint32_t addr, uint32_t size);
 uint8_t MR25H10_ReadByte(MR25H10_ctx_t *ctx, uint32_t addr);
 void 	MR25H10_WriteByte(MR25H10_ctx_t *ctx, uint32_t addr, uint8_t data);
 void    MR25H10_ReadStatus(MR25H10_ctx_t *ctx, uint8_t *status);
 void    MR25H10_WriteStatus(MR25H10_ctx_t *ctx, uint8_t *status);
+void 	MR25H10_PrintMRAM(MR25H10_ctx_t *ctx, uint32_t addr, uint32_t size);
+void 	MR25H10_PrintRAM(MR25H10_ctx_t *ctx, uint8_t *paddr, uint32_t size);
 
 
 

@@ -18,6 +18,8 @@ static void MR25H10_ChipSelect(MR25H10_ctx_t *ctx);
 static void MR25H10_ChipDeselect(MR25H10_ctx_t *ctx);
 static void MR25H10_WriteEnable(MR25H10_ctx_t *ctx);
 static void MR25H10_WriteDisable(MR25H10_ctx_t *ctx);
+static void MR25H10_SPI_Transmit(SPI_HandleTypeDef *hspi, uint8_t *pData, uint32_t Size, uint32_t Timeout);
+static void MR25H10_SPI_Receive(SPI_HandleTypeDef *hspi, uint8_t *pData, uint32_t Size, uint32_t Timeout);
 
 #define	OPCODE_WREN		0x06	/* Write enable */
 #define OPCODE_WRDI		0x04	/* Wrtie disable */
@@ -51,23 +53,23 @@ void MR25H10_Init(MR25H10_ctx_t *ctx, SPI_HandleTypeDef *hspi,  GPIO_TypeDef* GP
  * @param ctx MR25H10 Handle
  * @param addr Address [0x0 0x1FFFF]
  * @param pdata pointer of read data
- * @param size size of read data [0x0 0xFFFF]
+ * @param size size of read data
  */
-int32_t MR25H10_Read(MR25H10_ctx_t *ctx, uint32_t addr, uint8_t *pdata, uint16_t size){
+int32_t MR25H10_Read(MR25H10_ctx_t *ctx, uint32_t addr, uint8_t *pdata, uint32_t size){
 	if(MR25H10_MAX_SIZE < (addr + size)){
 		return EXIT_FAILURE;
 	}
 	osMutexWait(ctx->MutexHandle, MR25H10_TIMEOUT);
 	uint8_t cmd[4] = {
 		OPCODE_READ,
-		(uint8_t) (addr >> 16) & 0xFF,
-		(uint8_t) (addr >>  8) & 0xFF,
-		(uint8_t) (addr >>  0) & 0xFF,
+		(addr >> 16) & 0xFF,
+		(addr >>  8) & 0xFF,
+		(addr >>  0) & 0xFF,
 	};
 
 	MR25H10_ChipSelect(ctx);
-	HAL_SPI_Transmit(ctx->hspi, cmd, sizeof(cmd), MR25H10_TIMEOUT);
-	HAL_SPI_Receive(ctx->hspi, pdata, size, MR25H10_TIMEOUT);
+	MR25H10_SPI_Transmit(ctx->hspi, cmd, sizeof(cmd), MR25H10_TIMEOUT);
+	MR25H10_SPI_Receive(ctx->hspi, pdata, size, MR25H10_TIMEOUT);
 	MR25H10_ChipDeselect(ctx);
 
 	osMutexRelease(ctx->MutexHandle);
@@ -80,23 +82,23 @@ int32_t MR25H10_Read(MR25H10_ctx_t *ctx, uint32_t addr, uint8_t *pdata, uint16_t
  * @param ctx MR25H10 Handle
  * @param addr Address [0x0 0x1FFFF]
  * @param pdata pointer of write data
- * @param size size of write data [0x0 0xFFFF]
+ * @param size size of write data
  */
-int32_t MR25H10_Write(MR25H10_ctx_t *ctx, uint32_t addr, uint8_t *pdata, uint16_t size){
+int32_t MR25H10_Write(MR25H10_ctx_t *ctx, uint32_t addr, uint8_t *pdata, uint32_t size){
 	if(MR25H10_MAX_SIZE < (addr + size)){
 		return EXIT_FAILURE;
 	}
 	osMutexWait(ctx->MutexHandle, MR25H10_TIMEOUT);
 	uint8_t cmd[4] = {
 		OPCODE_WRITE,
-		(uint8_t) (addr >> 16) & 0xFF,
-		(uint8_t) (addr >>  8) & 0xFF,
-		(uint8_t) (addr >>  0) & 0xFF,
+		(addr >> 16) & 0xFF,
+		(addr >>  8) & 0xFF,
+		(addr >>  0) & 0xFF,
 	};
 	MR25H10_WriteEnable(ctx);
 	MR25H10_ChipSelect(ctx);
-	HAL_SPI_Transmit(ctx->hspi, cmd, sizeof(cmd), MR25H10_TIMEOUT);
-	HAL_SPI_Transmit(ctx->hspi, pdata, size, MR25H10_TIMEOUT);
+	MR25H10_SPI_Transmit(ctx->hspi, cmd, sizeof(cmd), MR25H10_TIMEOUT);
+	MR25H10_SPI_Transmit(ctx->hspi, pdata, size, MR25H10_TIMEOUT);
 	MR25H10_ChipDeselect(ctx);
 	MR25H10_WriteDisable(ctx);
 	osMutexRelease(ctx->MutexHandle);
@@ -117,16 +119,16 @@ int32_t MR25H10_Erase(MR25H10_ctx_t *ctx, uint32_t addr, uint32_t size){
 	osMutexWait(ctx->MutexHandle, MR25H10_TIMEOUT);
 	uint8_t cmd[4] = {
 		OPCODE_WRITE,
-		(uint8_t) (addr >> 16) & 0xFF,
-		(uint8_t) (addr >>  8) & 0xFF,
-		(uint8_t) (addr >>  0) & 0xFF,
+		(addr >> 16) & 0xFF,
+		(addr >>  8) & 0xFF,
+		(addr >>  0) & 0xFF,
 	};
 	MR25H10_WriteEnable(ctx);
 	MR25H10_ChipSelect(ctx);
-	HAL_SPI_Transmit(ctx->hspi, cmd, sizeof(cmd), MR25H10_TIMEOUT);
+	MR25H10_SPI_Transmit(ctx->hspi, cmd, sizeof(cmd), MR25H10_TIMEOUT);
 	for(int32_t i = 0; i < size; i++){
 		uint8_t data = 0;
-		HAL_SPI_Transmit(ctx->hspi, &data, sizeof(data), MR25H10_TIMEOUT);
+		MR25H10_SPI_Transmit(ctx->hspi, &data, sizeof(data), MR25H10_TIMEOUT);
 	}
 	MR25H10_ChipDeselect(ctx);
 	MR25H10_WriteDisable(ctx);
@@ -188,6 +190,33 @@ void MR25H10_WriteStatus(MR25H10_ctx_t *ctx, uint8_t *status){
 	MR25H10_WriteDisable(ctx);
 }
 
+void MR25H10_PrintMRAM(MR25H10_ctx_t *ctx, uint32_t addr, uint32_t size){
+	uint8_t data;
+	for(uint32_t i = 0; i < size; i++){
+		if((i % 16) == 0){
+			printf("0x%08x: ", addr + i);
+		}
+		data = MR25H10_ReadByte(ctx, addr + i);
+		printf("%02x ", data);
+		if((i % 16) == 15){
+			printf("\r\n");
+		}
+	}
+}
+void MR25H10_PrintRAM(MR25H10_ctx_t *ctx, uint8_t *paddr, uint32_t size){
+	uint8_t data;
+
+	for(uint32_t i = 0; i < size; i++){
+		if((i % 16) == 0){
+			printf("0x%08x: ", paddr + i);
+		}
+		data = *(paddr+i);
+		printf("%02x ", data);
+		if((i % 16) == 15){
+			printf("\r\n");
+		}
+	}
+}
 
 static void MR25H10_ChipSelect(MR25H10_ctx_t *ctx){
 	HAL_GPIO_WritePin(ctx->GPIOx, ctx->GPIO_Pin, GPIO_PIN_RESET);
@@ -206,4 +235,38 @@ static void MR25H10_WriteDisable(MR25H10_ctx_t *ctx){
 	MR25H10_ChipSelect(ctx);
 	HAL_SPI_Transmit(ctx->hspi, &cmd, sizeof(cmd), MR25H10_TIMEOUT);
 	MR25H10_ChipDeselect(ctx);
+}
+
+/**
+ * @brief Extended SPI Transmit to increase max size up to 32bit
+ * 
+ * @param hspi spi handle
+ * @param pData data pointer
+ * @param Size  size (up to 32bit)
+ * @param Timeout timeout
+ */
+static void MR25H10_SPI_Transmit(SPI_HandleTypeDef *hspi, uint8_t *pData, uint32_t Size, uint32_t Timeout){
+	while(UINT16_MAX < Size){
+		HAL_SPI_Transmit(hspi, pData, UINT16_MAX, Timeout);
+		pData += UINT16_MAX;
+		Size  -= UINT16_MAX;
+	}
+	HAL_SPI_Transmit(hspi, pData, Size, Timeout);
+}
+
+/**
+ * @brief Extended SPI Receive to increase max size up to 32bit
+ * 
+ * @param hspi spi handle
+ * @param pData data pointer
+ * @param Size size (up to 32bit)
+ * @param Timeout timeout
+ */
+static void MR25H10_SPI_Receive(SPI_HandleTypeDef *hspi, uint8_t *pData, uint32_t Size, uint32_t Timeout){
+	while(UINT16_MAX < Size){
+		HAL_SPI_Receive(hspi, pData, UINT16_MAX, Timeout);
+		pData += UINT16_MAX;
+		Size  -= UINT16_MAX;
+	}
+	HAL_SPI_Receive(hspi, pData, Size, Timeout);
 }
